@@ -11,10 +11,15 @@
     "postinstall": "mkdir -p public/vendor/ml-xgboost && cp node_modules/ml-xgboost/dist/wasm/xgboost.wasm public/vendor/ml-xgboost/"
   },
   "dependencies": {
-    "chart.js": "^4.4.4",
+    "chart.js": "^4.5.1",
     "ml-cart": "^2.0.1",
     "ml-xgboost": "^1.1.2",
     "papaparse": "^5.4.1",
+    "react": "^19.2.0",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.2.0",
+    "react-native": "^0.82.1",
+    "react-native-web": "^0.21.2",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
