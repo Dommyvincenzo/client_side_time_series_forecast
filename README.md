@@ -45,6 +45,7 @@ docker compose build
 
 # Run the container
 docker compose up
+
 ```
 
 ---

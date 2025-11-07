@@ -1,4 +1,3 @@
-// src/App.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -91,7 +90,7 @@ export default function App() {
     <View
       style={{
         flex: 1,
-        backgroundColor: "#050816",
+        backgroundColor: "#000000ff",
         padding: 24,
         alignItems: "center",
       }}
@@ -125,7 +124,7 @@ export default function App() {
           style={{
             padding: 8,
             borderRadius: 8,
-            border: "1px solid #4b5563",
+            border: "1px solid #5a5a5aff",
             background: "#111827",
             color: "#e5e7eb",
             flex: 1,
@@ -176,6 +175,7 @@ export default function App() {
         <Pressable
           onPress={handleTrain}
           style={{
+            width: 100,
             paddingVertical: 8,
             paddingHorizontal: 16,
             borderRadius: 999,
@@ -190,10 +190,11 @@ export default function App() {
         <Pressable
           onPress={handlePredict}
           style={{
+            width: 100,
             paddingVertical: 8,
             paddingHorizontal: 16,
             borderRadius: 999,
-            backgroundColor: model ? "#38bdf8" : "#1f2937",
+            backgroundColor: model ? "#38bdf8" : "#371f1fff",
             opacity: model ? 1 : 0.4,
           }}
         >
@@ -209,7 +210,7 @@ export default function App() {
           width: "100%",
           maxWidth: 960,
           height: 360,
-          backgroundColor: "#020817",
+          backgroundColor: "#000000ff",
           borderRadius: 16,
           padding: 12,
         }}
@@ -238,7 +239,7 @@ export default function App() {
           width: "100%",
           maxWidth: 960,
           marginTop: 12,
-          backgroundColor: "#020817",
+          backgroundColor: "#000000ff",
           borderRadius: 12,
           padding: 12,
         }}
