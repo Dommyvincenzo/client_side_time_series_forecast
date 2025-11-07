@@ -1,65 +1,101 @@
+// src/api.ts
+import type * as XLSXType from "xlsx";
 
-// Utility helpers for parsing and feature engineering (English only)
-
-/** Parse a CSV string to rows of objects */
+/**
+ * Parse a CSV string to rows of objects.
+ * If you later want PapaParse, you can plug it in via window.__parseCSV.
+ */
 export function parseCSV(csvText: string): { rows: any[]; headers: string[] } {
-  // PapaParse is heavy to import eagerly; for simplicity, a tiny CSV parser is ok for demo
-  // But we will import papaparse dynamically for robustness
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  return window.__parseCSV
-    ? window.__parseCSV(csvText)
-    : simpleCSV(csvText);
+  // @ts-ignore optional hook
+  if (typeof window !== "undefined" && window.__parseCSV) {
+    // @ts-ignore
+    return window.__parseCSV(csvText);
+  }
+  return simpleCSV(csvText);
 }
 
-/** Minimal CSV parser (fallback) */
+/** Minimal CSV parser (no quotes/escapes magic, just enough for this demo). */
 function simpleCSV(text: string): { rows: any[]; headers: string[] } {
-  const lines = text.trim().split(/\r?\n/);
-  const headers = lines[0].split(",").map((h) => h.trim());
-  const rows = lines.slice(1).map((line) => {
-    const vals = line.split(",").map((v) => v.trim());
-    const obj: Record<string, any> = {};
-    headers.forEach((h, i) => (obj[h] = vals[i]));
-    return obj;
-  });
+  const trimmed = text.trim();
+  if (!trimmed) return { rows: [], headers: [] };
+
+  const lines = trimmed.split(/\r?\n/);
+  const headers = (lines[0] ?? "")
+    .split(",")
+    .map((h) => h.trim());
+
+  const rows = lines
+    .slice(1)
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const vals = line.split(",").map((v) => v.trim());
+      const obj: Record<string, any> = {};
+      headers.forEach((h, i) => {
+        obj[h] = vals[i];
+      });
+      return obj;
+    });
+
   return { rows, headers };
 }
 
-/** Build features for tabular tree models: other series + time features */
+/**
+ * Feature builder:
+ * - uses all non-datetime, non-target columns as numeric features
+ * - adds simple time-index encodings
+ * Returns full matrix + last-step feature row for +1 prediction.
+ */
 export function buildFeatures(
   rows: any[],
   datetimeKey: string,
   targetKey: string
 ): { X: number[][]; y: number[]; lastFeatureRow: number[] } {
+  if (!rows.length) {
+    return { X: [], y: [], lastFeatureRow: [] };
+  }
+
   const headers = Object.keys(rows[0] ?? {});
   const featureKeys = headers.filter(
     (h) => h !== datetimeKey && h !== targetKey
   );
-  // time index engineered features (sin/cos seasonality + index)
+
+  const toNum = (v: any) =>
+    v === "" || v == null || (typeof v === "number" && Number.isNaN(v))
+      ? NaN
+      : Number(v);
+
   const X: number[][] = [];
   const y: number[] = [];
-  const toNum = (v: any) => (v === "" || v == null ? NaN : Number(v));
 
   rows.forEach((r, idx) => {
     const t = idx;
     const feats: number[] = [];
-    // other series
-    featureKeys.forEach((k) => feats.push(toNum(r[k])));
-    // time encodings
+
+    // Other series as features
+    featureKeys.forEach((k) => {
+      feats.push(toNum(r[k]));
+    });
+
+    // Time encodings
     feats.push(t);
-    feats.push(Math.sin((2 * Math.PI * t) / 24)); // daily-like
+    feats.push(Math.sin((2 * Math.PI * t) / 24));
     feats.push(Math.cos((2 * Math.PI * t) / 24));
-    feats.push(Math.sin((2 * Math.PI * t) / 168)); // weekly-like
+    feats.push(Math.sin((2 * Math.PI * t) / 168));
     feats.push(Math.cos((2 * Math.PI * t) / 168));
+
     X.push(feats);
     y.push(toNum(r[targetKey]));
   });
 
-  // next-step features = last row with t = rows.length
+  // +1 step feature row, reusing last row's non-target features
   const last = rows[rows.length - 1];
   const tNext = rows.length;
   const nextFeats: number[] = [];
-  featureKeys.forEach((k) => nextFeats.push(toNum(last[k])));
+
+  featureKeys.forEach((k) => {
+    nextFeats.push(toNum(last[k]));
+  });
+
   nextFeats.push(tNext);
   nextFeats.push(Math.sin((2 * Math.PI * tNext) / 24));
   nextFeats.push(Math.cos((2 * Math.PI * tNext) / 24));
@@ -69,14 +105,20 @@ export function buildFeatures(
   return { X, y, lastFeatureRow: nextFeats };
 }
 
-/** Safely parse XLSX ArrayBuffer into rows */
-export function parseXLSX(buf: ArrayBuffer): { rows: any[]; headers: string[] } {
-  const XLSX = (window as any).XLSX;
-  if (!XLSX) throw new Error("XLSX library not found on window");
+/**
+ * Parse XLSX ArrayBuffer into rows and headers using npm `xlsx`.
+ */
+export async function parseXLSX(
+  buf: ArrayBuffer
+): Promise<{ rows: any[]; headers: string[] }> {
+  const XLSX = (await import("xlsx")) as typeof XLSXType;
+
   const wb = XLSX.read(new Uint8Array(buf), { type: "array" });
-  const wsName = wb.SheetNames[0];
-  const ws = wb.Sheets[wsName];
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+
   const rows: any[] = XLSX.utils.sheet_to_json(ws, { raw: true });
   const headers = rows.length ? Object.keys(rows[0]) : [];
+
   return { rows, headers };
 }
