@@ -4,8 +4,6 @@ import {
   Text,
   Pressable,
   ScrollView,
-  TouchableOpacity,
-  Linking,
 } from "react-native-web";
 import type { LoadedData } from "./core";
 import { loadFromCSV, loadFromXLSX, trainModel, predictNext } from "./core";
@@ -19,10 +17,16 @@ import {
   Legend,
   Tooltip,
 } from "chart.js";
-
 import type { ChartData, ChartOptions } from "chart.js";
 
-ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Legend, Tooltip);
+ChartJS.register(
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Legend,
+  Tooltip
+);
 
 export default function App() {
   const [status, setStatus] = useState("idle");
@@ -31,10 +35,14 @@ export default function App() {
   const [model, setModel] = useState<any>(null);
   const [forecast, setForecast] = useState<string>("");
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ): Promise<void> {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setStatus(`reading ${file.name} ...`);
+
     const ext = file.name.toLowerCase().split(".").pop();
     try {
       if (ext === "csv") {
@@ -52,6 +60,7 @@ export default function App() {
       } else {
         throw new Error("Unsupported file type (use .csv or .xlsx)");
       }
+
       setModel(null);
       setForecast("");
     } catch (err: any) {
@@ -60,12 +69,10 @@ export default function App() {
   }
 
   function guessTarget(loaded: LoadedData): string | null {
-    return (
-      loaded.headers.find((h) => h !== loaded.datetimeKey) ?? null
-    );
+    return loaded.headers.find((h) => h !== loaded.datetimeKey) ?? null;
   }
 
-  async function handleTrain() {
+  async function handleTrain(): Promise<void> {
     if (!data || !target) return;
     setStatus("training ...");
     try {
@@ -77,20 +84,22 @@ export default function App() {
     }
   }
 
-  function handlePredict() {
+  function handlePredict(): void {
     if (!data || !target || !model) return;
+
     const yhat = predictNext(data, target, model);
+
     setForecast(
       Number.isFinite(yhat)
-        ? `Target="${target}" → next(+1) forecast: ${yhat.toFixed(4)}`
+        ? `Target="${target}" → next(+1) forecast: ${Number(yhat).toFixed(4)}`
         : String(yhat)
     );
     setStatus("predicted");
   }
 
-  const chartData = buildChartData(data);
-
-  const REPO_URL = "https://github.com/europanite/client_side_time_series_forecast";
+  const chart = buildChartData(data);
+  const REPO_URL =
+    "https://github.com/europanite/client_side_time_series_forecast";
 
   return (
     <View
@@ -112,8 +121,12 @@ export default function App() {
         Client Side Time-Series Forecast
       </Text>
 
-          
-      <TouchableOpacity onPress={() => Linking.openURL(REPO_URL)}>
+      {/* GitHub link (Pressable + window.open, no Linking / TouchableOpacity) */}
+      <Pressable
+        onPress={() =>
+          window.open(REPO_URL, "_blank", "noopener,noreferrer")
+        }
+      >
         <Text
           style={{
             fontSize: 24,
@@ -125,10 +138,9 @@ export default function App() {
         >
           DET Vocabulary Practice
         </Text>
-      </TouchableOpacity>
+      </Pressable>
 
-      {/* File input (web via react-native-web) */}
-
+      {/* File input */}
       <View
         style={{
           width: "100%",
@@ -146,15 +158,13 @@ export default function App() {
           style={{
             padding: 8,
             borderRadius: 8,
-            border: "1px solid #5a5a5aff",
+            border: "1px solid #5a5a5a",
             background: "#111827",
             color: "#e5e7eb",
             flex: 1,
           }}
         />
-        <Text
-          style={{ marginLeft: 12, color: "#9ca3af" }}
-        >
+        <Text style={{ marginLeft: 12, color: "#9ca3af" }}>
           Status: {status}
         </Text>
       </View>
@@ -204,9 +214,7 @@ export default function App() {
             backgroundColor: "#22c55e",
           }}
         >
-          <Text style={{ color: "#020817", fontWeight: "600" }}>
-            Train
-          </Text>
+          <Text style={{ color: "#020817", fontWeight: "600" }}>Train</Text>
         </Pressable>
 
         <Pressable
@@ -216,7 +224,7 @@ export default function App() {
             paddingVertical: 8,
             paddingHorizontal: 16,
             borderRadius: 999,
-            backgroundColor: model ? "#38bdf8" : "#371f1fff",
+            backgroundColor: model ? "#38bdf8" : "#371f1f",
             opacity: model ? 1 : 0.4,
           }}
         >
@@ -237,11 +245,8 @@ export default function App() {
           padding: 12,
         }}
       >
-        {chartData ? (
-          <Line
-            data={chartData.data}
-            options={chartData.options}
-          />
+        {chart ? (
+          <Line data={chart.data} options={chart.options} />
         ) : (
           <Text
             style={{
@@ -289,7 +294,7 @@ function buildChartData(
 
   const labels: string[] = useDatetime
     ? data.rows.map((r) => String(r[data.datetimeKey as string] ?? ""))
-    : data.rows.map((_, i) => String(i)); // ← number ではなく string に統一
+    : data.rows.map((_, i) => String(i)); // unify as string
 
   const numericKeys = data.headers.filter((h) => {
     if (h === data.datetimeKey) return false;
